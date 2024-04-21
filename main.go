@@ -3,8 +3,13 @@ package main
 import (
 	"fmt"
 	"github.com/getlantern/systray"
+	"github.com/pelletier/go-toml"
 	"io/ioutil"
+	"math"
+	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -14,6 +19,57 @@ import (
 type BatteryInfo struct {
 	Level      float64
 	IsCharging bool
+}
+
+func getParentConfigPath() string {
+	switch oss := runtime.GOOS; oss {
+	case "windows":
+		return filepath.Join(os.Getenv("APPDATA"), "ha-battery-level")
+	case "darwin":
+		return filepath.Join(os.Getenv("HOME"), "Library", "Application Support", "ha-battery-level")
+	case "linux":
+		return filepath.Join(os.Getenv("HOME"), ".config", "ha-battery-level")
+	default:
+		return ""
+	}
+}
+
+func getConfigPath() string {
+	switch oss := runtime.GOOS; oss {
+	case "windows":
+		return filepath.Join(os.Getenv("APPDATA"), "ha-battery-level", "settings.toml")
+	case "darwin":
+		return filepath.Join(os.Getenv("HOME"), "Library", "Application Support", "ha-battery-level", "settings.toml")
+	case "linux":
+		return filepath.Join(os.Getenv("HOME"), ".config", "ha-battery-level", "settings.toml")
+	default:
+		return ""
+	}
+}
+
+func getUserConfig() (map[string]interface{}, error) {
+	configPath := getConfigPath()
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		parentConfigPath := getParentConfigPath()
+		err := os.MkdirAll(parentConfigPath, 0755)
+		if err != nil {
+			return nil, err
+		}
+		err = ioutil.WriteFile(configPath, []byte("baseUrl=\ntoken=\nfriendlyName=\nsensor"), 0644)
+		if err != nil {
+			return nil, err
+		}
+		panic("Please configure the settings in the settings.toml file")
+	}
+	configData, err := ioutil.ReadFile(configPath)
+	if err != nil {
+		return nil, err
+	}
+	config := make(map[string]interface{})
+	if err := toml.Unmarshal(configData, &config); err != nil {
+		return nil, err
+	}
+	return config, nil
 }
 
 func GetBatteryInfo() (BatteryInfo, error) {
@@ -99,17 +155,47 @@ func GetBatteryInfo() (BatteryInfo, error) {
 
 func main() {
 	go func() {
+		userConfig, err := getUserConfig()
+		if err != nil {
+			panic(err)
+		}
 		for {
 			info, err := GetBatteryInfo()
 			if err != nil {
 				fmt.Println("Error:", err)
 				return
 			}
-			fmt.Printf("Battery level: %.2f%%\n", info.Level)
-			if info.IsCharging {
-				fmt.Println("Battery is charging.")
+			if userConfig["baseUrl"] != nil && userConfig["token"] != nil && userConfig["friendlyName"] != nil && userConfig["sensor"] != nil {
+				baseUrl := userConfig["baseUrl"].(string)
+				token := userConfig["token"].(string)
+				friendlyName := userConfig["friendlyName"].(string)
+				sensor := userConfig["sensor"].(string)
+				url := fmt.Sprintf("%s/api/states/%s", baseUrl, sensor)
+				icon := "mdi:battery"
+				if info.IsCharging {
+					icon = "mdi:battery-charging"
+				}
+				icon = fmt.Sprintf("%s-%s", icon, strconv.Itoa(int(math.Round(info.Level/10)*10)))
+				payload := fmt.Sprintf("{\"state\": \"%f\", \"attributes\": {\"unit_of_measurement\": \"%%\", \"friendly_name\": \"%s\", \"icon\": \"%s\"}}", info.Level, friendlyName, icon)
+				req, err := http.NewRequest("POST", url, strings.NewReader(payload))
+				if err != nil {
+					fmt.Println("Error:", err)
+					return
+				}
+				req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+				req.Header.Set("Content-Type", "application/json")
+				client := &http.Client{}
+				resp, err := client.Do(req)
+				if err != nil {
+					fmt.Println("Error:", err)
+					return
+				}
+				err = resp.Body.Close()
+				if err != nil {
+					return
+				}
 			} else {
-				fmt.Println("Battery is not charging.")
+				fmt.Println("Error: Config not found")
 			}
 			time.Sleep(5 * time.Second)
 		}
