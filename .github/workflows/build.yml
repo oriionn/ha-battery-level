@@ -46,12 +46,12 @@ jobs:
 
       - name: Archive (Linux)
         if: matrix.os == 'ubuntu-latest'
-        run: tar -czvf linux.tar.gz ./linux
+        run: tar -czvf linux.tar.gz ./linux/*
       - name: Archive (Windows)
         if: matrix.os == 'windows-latest'
         uses: montudor/action-zip@v1
         with:
-          args: zip -qq -r windows.zip ./windows
+          args: Compress-Archive -Path ./windows/* -Destination windows.zip
 
       - name: Upload Release Asset (Linux)
         if: matrix.os == 'ubuntu-latest'
