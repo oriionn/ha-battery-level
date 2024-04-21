@@ -23,47 +23,47 @@ jobs:
           go get github.com/getlantern/systray
           go get github.com/pelletier/go-toml
       - name: Install Dependencies (Linux)
-        if: runner.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get install gcc libgtk-3-dev libayatana-appindicator3-dev
 
       - name: Build (Linux)
-        if: runner.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest'
         run: go build -tags=legacy_appindicator -o ./linux/ha-battery-level
       - name: Build (Windows)
-        if: runner.os == 'windows-latest'
+        if: matrix.os == 'windows-latest'
         run: go build -ldflags -H=windowsgui -o ./windows/ha-battery-level.exe
       - name: Build (Mac)
-        if: runner.os == 'macos-latest'
+        if: matrix.os == 'macos-latest'
         run: go build -o ./mac/ha-battery-level
 
       - name: Copy Icons (Mac)
-        if: runner.os == 'macos-latest'
+        if: matrix.os == 'macos-latest'
         run: |
           mkdir ./mac/icons
           cp ./icons/* ./mac/icons
       - name: Copy Icons (Linux)
-        if: runner.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest'
         run: |
           mkdir ./linux/icons 
           cp ./icons/* ./linux/icons
       - name: Copy Icons (Windows)
-        if: runner.os == 'windows-latest'
+        if: matrix.os == 'windows-latest'
         run: |
           mkdir ./windows/icons
           cp ./icons/* ./windows/icons
 
       - name: Archive (Linux)
-        if: runner.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest'
         run: tar -czvf linux.tar.gz ./linux
       - name: Archive (Windows)
-        if: runner.os == 'windows-latest'
+        if: matrix.os == 'windows-latest'
         run: zip -r windows.zip ./windows
       - name: Archive (Mac)
-        if: runner.os == 'macos-latest'
+        if: matrix.os == 'macos-latest'
         run: tar -czvf macos.tar.gz ./mac
 
       - name: Upload Release Asset (Linux)
-        if: runner.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ github.event.release.upload_url }}
@@ -75,7 +75,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.TOKEN_GH }}
 
       - name: Upload Release Asset (Windows)
-        if: runner.os == 'windows-latest'
+        if: matrix.os == 'windows-latest'
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ github.event.release.upload_url }}
@@ -86,7 +86,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN_GH }}
       - name: Upload Release Asset (Mac)
-        if: runner.os == 'macos-latest'
+        if: matrix.os == 'macos-latest'
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ github.event.release.upload_url }}
