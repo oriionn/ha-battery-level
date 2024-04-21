@@ -11,7 +11,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
       - name: Setup Go 1.21.x
@@ -32,15 +32,7 @@ jobs:
       - name: Build (Windows)
         if: matrix.os == 'windows-latest'
         run: go build -ldflags -H=windowsgui -o ./windows/ha-battery-level.exe
-      - name: Build (Mac)
-        if: matrix.os == 'macos-latest'
-        run: go build -o ./mac/ha-battery-level
 
-      - name: Copy Icons (Mac)
-        if: matrix.os == 'macos-latest'
-        run: |
-          mkdir ./mac/icons
-          cp ./icons/* ./mac/icons
       - name: Copy Icons (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
@@ -58,9 +50,6 @@ jobs:
       - name: Archive (Windows)
         if: matrix.os == 'windows-latest'
         run: zip -r windows.zip ./windows
-      - name: Archive (Mac)
-        if: matrix.os == 'macos-latest'
-        run: tar -czvf macos.tar.gz ./mac
 
       - name: Upload Release Asset (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -73,7 +62,6 @@ jobs:
           asset_label: ha-battery-level-linux.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN_GH }}
-
       - name: Upload Release Asset (Windows)
         if: matrix.os == 'windows-latest'
         uses: actions/upload-release-asset@v1
@@ -83,16 +71,5 @@ jobs:
           asset_name: ha-battery-level-windows.zip
           asset_content_type: application/zip
           asset_label: ha-battery-level-windows.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.TOKEN_GH }}
-      - name: Upload Release Asset (Mac)
-        if: matrix.os == 'macos-latest'
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ./macos.tar.gz
-          asset_name: ha-battery-level-macos.tar.gz
-          asset_content_type: application/gzip
-          asset_label: ha-battery-level-macos.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN_GH }}
