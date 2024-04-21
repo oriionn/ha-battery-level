@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/getlantern/systray"
 	"github.com/pelletier/go-toml"
+	"github.com/sqweek/dialog"
 	"io/ioutil"
 	"math"
 	"net/http"
@@ -16,6 +17,8 @@ import (
 	"strings"
 	"time"
 )
+
+var displayMessage bool
 
 type BatteryInfo struct {
 	Level      float64
@@ -59,6 +62,9 @@ func getUserConfig() (map[string]interface{}, error) {
 		err = ioutil.WriteFile(configPath, []byte("baseUrl=\ntoken=\nfriendlyName=\nsensor="), 0644)
 		if err != nil {
 			return nil, err
+		}
+		if displayMessage == true {
+			dialog.Message("Please configure the settings in the settings.toml file\n" + configPath).Title("Configuration").Error()
 		}
 		panic("Please configure the settings in the settings.toml file\n" + configPath)
 	}
@@ -155,6 +161,9 @@ func GetBatteryInfo() (BatteryInfo, error) {
 			}
 		}
 	default:
+		if displayMessage == true {
+			dialog.Message("Unsupported operating system").Title("Error").Error()
+		}
 		return info, fmt.Errorf("unsupported operating system")
 	}
 
@@ -162,15 +171,40 @@ func GetBatteryInfo() (BatteryInfo, error) {
 }
 
 func main() {
+	displayMessage = true
+	if runtime.GOOS == "linux" {
+		displayMessage = false
+
+		out, err := exec.Command("ps", "-e").Output()
+		if err != nil {
+			fmt.Println("Erreur lors de l'exécution de la commande :", err)
+			return
+		}
+
+		windowManagers := []string{"gnome-session", "kdeinit", "xfce4-session", "lxsession", "mate-session", "cinnamon", "unity", "peppermint", "lxqt-session", "fluxbox", "blackbox", "openbox"}
+		for _, wm := range windowManagers {
+			if strings.Contains(string(out), wm) {
+				displayMessage = true
+				return
+			}
+		}
+	}
+
 	go func() {
 		userConfig, err := getUserConfig()
 		if err != nil {
+			if displayMessage == true {
+				dialog.Message("Error while getting user config").Title("Error").Error()
+			}
 			panic(err)
 		}
 		for {
 			info, err := GetBatteryInfo()
 			if err != nil {
-				fmt.Println("Error:", err)
+				if displayMessage == true {
+					dialog.Message("Error while getting battery info").Title("Error").Error()
+				}
+				panic(err)
 				return
 			}
 			if userConfig["baseUrl"] != nil && userConfig["token"] != nil && userConfig["friendlyName"] != nil && userConfig["sensor"] != nil {
@@ -203,6 +237,9 @@ func main() {
 					return
 				}
 			} else {
+				if displayMessage == true {
+					dialog.Message("Please configure the settings in the settings.toml file\n" + getConfigPath()).Title("Configuration").Error()
+				}
 				fmt.Println("Error: Config not found")
 			}
 			time.Sleep(5 * time.Second)
@@ -212,6 +249,9 @@ func main() {
 	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" {
 		systray.Run(onReady, onExit)
 	} else {
+		if displayMessage == true {
+			dialog.Message("Unsupported OS for Tray Icon").Title("Warning").Error()
+		}
 		fmt.Println("Unsupported OS for Tray Icon")
 	}
 }
