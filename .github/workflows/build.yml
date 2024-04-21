@@ -40,21 +40,27 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: go build -o ./macos/ha-battery-level
 
-      - name: Copy Icons (Linux)
+      - name: Copy Files (Linux)
         if: matrix.os == 'ubuntu-latest'
         run: |
           mkdir ./linux/icons 
           cp ./icons/* ./linux/icons
-      - name: Copy Icons (Windows)
+          cp LICENSE ./linux/LICENSE
+          cp README.md ./linux/README.md
+      - name: Copy Files (Windows)
         if: matrix.os == 'windows-latest'
         run: |
           mkdir ./windows/icons
           cp ./icons/* ./windows/icons
-      - name: Copy Icons (MacOS)
+          cp LICENSE ./windows/LICENSE
+          cp README.md ./windows/README.md
+      - name: Copy Files (MacOS)
         if: matrix.os == 'macos-latest'
         run: |
           mkdir ./macos/icons
           cp ./icons/* ./macos/icons
+          cp LICENSE ./macos/LICENSE
+          cp README.md ./macos/README.md
 
       - name: Archive (Linux)
         if: matrix.os == 'ubuntu-latest'
