@@ -1,12 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"github.com/getlantern/systray"
 	"io/ioutil"
-	"log"
-	"os"
 	"os/exec"
 	"runtime"
 	"strconv"
@@ -14,120 +11,90 @@ import (
 	"time"
 )
 
-type batteryStatus struct {
-	connected  bool
-	percentage int
-	color      *string
+type BatteryInfo struct {
+	Level      float64
+	IsCharging bool
 }
 
-func batteryCharge(battStat *batteryStatus) {
-	switch runtime.GOOS {
-	case "darwin": // MacOS
-		if opts.GeneralOption.PmsetOn {
-			acCmd := "pmset -g batt | grep -o 'AC Power'"
-			cmd := exec.Command("sh", "-c", acCmd)
-			cmd.Run()
-			// Battery Connection
-			if cmd.ProcessState.ExitCode() == 0 {
-				battStat.connected = true
-			} else {
-				battStat.connected = false
-			}
-			// Battery Percentage
-			battPrcCmd := "pmset -g batt | grep -o '[0-9]*%' | tr -d %"
-			out, err := exec.Command("sh", "-c", battPrcCmd).Output()
-			if err != nil {
-				log.Fatal(err)
-			}
-			// Convert from byte to int
-			battStat.percentage, err = strconv.Atoi(strings.TrimRight(string(out), "\n"))
-			if err != nil {
-				log.Fatal(err)
-			}
-		} else {
-			// Battery Info by ioreg
-			acCmd := "ioreg -n AppleSmartBattery -r | grep -o '\"[^\"]*\" = [^ ]*' | sed -e 's/= //g' -e 's/\"//g'"
-			out, err := exec.Command("sh", "-c", acCmd).Output()
-			if err != nil {
-				log.Fatal(err)
-			}
-			ioregInfo := make(map[string]string, 50)
-			scanner := bufio.NewScanner(strings.NewReader(string(out)))
-			for scanner.Scan() {
-				words := strings.Fields(scanner.Text())
-				ioregInfo[words[0]] = words[1]
-			}
-			// Battery Connection
-			if ioregInfo["ExternalConnected"] == "No" {
-				battStat.connected = false
-			} else {
-				battStat.connected = true
-			}
+func GetBatteryInfo() (BatteryInfo, error) {
+	var info BatteryInfo
+	var cmd *exec.Cmd
+	var output []byte
+	var err error
 
-			// Battery Percentage
-			maxCapacity, hasMaxCapacity := ioregInfo["MaxCapacity"]
-			currentCapacity, hasCurrentCapacity := ioregInfo["CurrentCapacity"]
-			if hasMaxCapacity && hasCurrentCapacity {
-				currentCapacityInt, err := strconv.Atoi(currentCapacity)
-				if err != nil {
-					log.Fatal(err)
-				}
-				maxCapacityInt, err := strconv.Atoi(maxCapacity)
-				if err != nil {
-					log.Fatal(err)
-				}
-				battStat.percentage = 100 * currentCapacityInt / maxCapacityInt
-			} else {
-				log.Fatalf("failed to get battery capacity from ioreg")
-				os.Exit(-1)
-			}
-		}
+	switch os := runtime.GOOS; os {
 	case "linux":
-		f, err := os.Open(opts.GeneralOption.BatteryPath + "/uevent")
+		cmd = exec.Command("acpi", "-b")
+		output, err = cmd.Output()
 		if err != nil {
-			log.Fatal(err)
+			return info, err
 		}
-		defer f.Close()
-
-		uevent := make(map[string]string, 20)
-		scanner := bufio.NewScanner(f)
-		for scanner.Scan() {
-			words := strings.SplitN(scanner.Text(), "=", 2)
-			uevent[words[0]] = words[1]
+		outputStr := strings.TrimSpace(string(output))
+		batteryInfo := strings.Fields(outputStr)
+		if len(batteryInfo) < 4 {
+			return info, fmt.Errorf("unable to retrieve battery info")
 		}
-
-		// Battery Connection
-		if uevent["POWER_SUPPLY_STATUS"] == "Discharging" {
-			battStat.connected = false
-		} else {
-			battStat.connected = true
-		}
-
-		// Battery Percentage
-		maxCapacity := uevent["POWER_SUPPLY_ENERGY_FULL"]
-		currentCapacity := uevent["POWER_SUPPLY_ENERGY_NOW"]
-
-		currentCapacityInt, err := strconv.Atoi(currentCapacity)
+		levelStr := strings.TrimSuffix(strings.TrimSuffix(batteryInfo[3], ","), "%")
+		info.Level, err = strconv.ParseFloat(levelStr, 64)
 		if err != nil {
-			log.Fatal(err)
+			return info, err
 		}
-		maxCapacityInt, err := strconv.Atoi(maxCapacity)
+		info.IsCharging = strings.Contains(strings.ToLower(batteryInfo[2]), "charging")
+	case "darwin":
+		cmd = exec.Command("pmset", "-g", "batt")
+		output, err = cmd.Output()
 		if err != nil {
-			log.Fatal(err)
+			return info, err
 		}
-		battStat.percentage = 100 * currentCapacityInt / maxCapacityInt
+		outputStr := strings.TrimSpace(string(output))
+		lines := strings.Split(outputStr, "\n")
+		if len(lines) < 2 {
+			return info, fmt.Errorf("unable to retrieve battery info")
+		}
+		levelStr := strings.TrimSpace(strings.Split(lines[1], ";")[0])
+		info.Level, err = strconv.ParseFloat(levelStr, 64)
+		if err != nil {
+			return info, err
+		}
+		info.IsCharging = strings.Contains(strings.ToLower(lines[0]), "charging")
+	case "windows":
+		cmd = exec.Command("powershell", "Get-WmiObject", "Win32_Battery")
+		output, err = cmd.Output()
+		if err != nil {
+			return info, err
+		}
+		outputStr := strings.TrimSpace(string(output))
+		lines := strings.Split(outputStr, "\n")
+		if len(lines) < 3 {
+			return info, fmt.Errorf("unable to retrieve battery info")
+		}
+		levelStr := strings.TrimSpace(strings.Split(strings.Split(lines[2], ":")[1], "%")[0])
+		info.Level, err = strconv.ParseFloat(levelStr, 64)
+		if err != nil {
+			return info, err
+		}
+		info.IsCharging = strings.Contains(strings.ToLower(lines[1]), "charging")
 	default:
-		log.Fatalf("this version does not yet support your OS")
-		os.Exit(-1)
+		return info, fmt.Errorf("unsupported operating system")
 	}
+
+	return info, nil
 }
 
 func main() {
 	go func() {
 		for {
-			battStat := batteryStatus{}
-			batteryCharge(&battStat)
-			fmt.Println("Battery Status: ", battStat.percentage)
+			info, err := GetBatteryInfo()
+			if err != nil {
+				fmt.Println("Error:", err)
+				return
+			}
+			fmt.Printf("Battery level: %.2f%%\n", info.Level)
+			if info.IsCharging {
+				fmt.Println("Battery is charging.")
+			} else {
+				fmt.Println("Battery is not charging.")
+			}
 			time.Sleep(5 * time.Second)
 		}
 	}()
