@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/getlantern/systray"
 	"github.com/pelletier/go-toml"
@@ -114,11 +115,17 @@ func GetBatteryInfo() (BatteryInfo, error) {
 		}
 		info.IsCharging = strings.Contains(strings.ToLower(lines[0]), "charging")
 	case "windows":
-		cmd = exec.Command("powershell", "Get-WmiObject", "Win32_Battery")
-		output, err = cmd.Output()
+		cmd := exec.Command("powershell", "Get-WmiObject", "Win32_Battery")
+
+		var outb, errb bytes.Buffer
+		cmd.Stdout = &outb
+		cmd.Stderr = &errb
+
+		err := cmd.Run()
 		if err != nil {
 			return info, err
 		}
+		output := outb.Bytes()
 		outputStr := strings.TrimSpace(string(output))
 		lines := strings.Split(outputStr, "\n")
 		if len(lines) < 2 {
