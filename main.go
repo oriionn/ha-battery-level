@@ -55,7 +55,7 @@ func getUserConfig() (map[string]interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		err = ioutil.WriteFile(configPath, []byte("baseUrl=\ntoken=\nfriendlyName=\nsensor"), 0644)
+		err = ioutil.WriteFile(configPath, []byte("baseUrl=\ntoken=\nfriendlyName=\nsensor="), 0644)
 		if err != nil {
 			return nil, err
 		}
@@ -66,6 +66,7 @@ func getUserConfig() (map[string]interface{}, error) {
 		return nil, err
 	}
 	config := make(map[string]interface{})
+	fmt.Println(config)
 	if err := toml.Unmarshal(configData, &config); err != nil {
 		return nil, err
 	}
