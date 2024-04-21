@@ -217,7 +217,9 @@ func main() {
 				if info.IsCharging {
 					icon = "mdi:battery-charging"
 				}
-				icon = fmt.Sprintf("%s-%s", icon, strconv.Itoa(int(math.Round(info.Level/10)*10)))
+				if info.Level != 100 {
+					icon = fmt.Sprintf("%s-%s", icon, strconv.Itoa(int(math.Round(info.Level/10)*10)))
+				}
 				payload := fmt.Sprintf("{\"state\": \"%f\", \"attributes\": {\"unit_of_measurement\": \"%%\", \"friendly_name\": \"%s\", \"icon\": \"%s\"}}", info.Level, friendlyName, icon)
 				req, err := http.NewRequest("POST", url, strings.NewReader(payload))
 				if err != nil {
