@@ -11,60 +11,63 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [macos-latest, ubuntu-latest, windows-latest]
     steps:
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
+      - uses: actions/checkout@v4
+      - name: Setup Go 1.21.x
+        uses: actions/setup-go@v4
         with:
-          go-version-file: 'go.mod'
-          cache-dependency-path: 'go.sum'
-
-      - name: Check out code
-        uses: actions/checkout@v3
-
-      - name: Install dependencies (Linux)
-        if: matrix.os == 'ubuntu-latest'
+          go-version: 1.21.x
+      - name: Install dependencies
         run: |
-          sudo apt-get install gcc libgtk-3-dev libayatana-appindicator3-dev
-
-      - name: Install Go Dependencies
-        env:
-          GO111MODULE: on
-        run: go mod download
-
-      - name: Build
-        env:
-          GO111MODULE: on
+          go get github.com/getlantern/systray
+          go get github.com/pelletier/go-toml
+      - name: Install Dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get install gcc libgtk-3-dev libayatana-appindicator3-dev
+      - name: Build (Linux)
+        if: runner.os == 'Linux'
+        run: go build -tags=legacy_appindicator -o ./linux/ha-battery-level
+      - name: Build (Windows)
+        if: runner.os == 'Windows'
+        run: go build -ldflags -H=windowsgui -o ./windows/ha-battery-level.exe
+      - name: Build (Mac)
+        if: runner.os == 'Mac'
+        run: go build -o ./mac/ha-battery-level
+      - name: Copy Icons
+        run: | 
+          cp ./icons/* ./linux/
+          cp ./icons/* ./windows/
+          cp ./icons/* ./mac/
+      - name: Archive
         run: |
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            go build -ldflags "-H=windowsgui" -o build/windows/ha-battery-level.exe
-          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
-            go build -o build/macos/ha-battery-level
-            mkdir -p build/macos/ha-battery-level.app/Contents/MacOS
-            mkdir -p build/macos/ha-battery-level.app/Contents/Resources
-            mv build/macos/ha-battery-level build/macos/ha-battery-level.app/Contents/MacOS/
-            cp icons/ha-battery-level.icns build/macos/ha-battery-level.app/Contents/Resources/
-            echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleExecutable</key><string>ha-battery-level</string><key>CFBundleIconFile</key><string>ha-battery-level.icns</string><key>NSHighResolutionCapable</key><string>True</string><key>LSUIElement</key><string>1</string></dict></plist>' > build/macos/ha-battery-level.app/Contents/Info.plist
-          else
-            go build -tags=legacy_appindicator -o build/linux/ha-battery-level
-          fi
-
-      - name: Package Release
-        run: |
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            7z a -tzip release/windows.zip ./build/windows/* ./icons/*
-          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
-            zip -r release/macos.zip ./build/macos/* ./icons/*
-          else
-            zip -r release/linux.zip ./build/linux/* ./icons/*  
-          fi
-
-      - name: Upload Release Assets
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
+          tar -czvf linux.tar.gz ./linux
+          zip -r windows.zip ./windows
+          tar -czvf macos.tar.gz ./mac
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
         with:
-          files: |
-            release/windows.zip
-            release/macos.zip
-            release/linux.zip
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./ha-battery-level-linux.tar.gz
+          asset_name: ha-battery-level-linux.tar.gz
+          asset_content_type: application/gzip
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN_GH }}
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./ha-battery-level-windows.zip
+          asset_name: ha-battery-level-windows.zip
+          asset_content_type: application/zip
+        env:
+            GITHUB_TOKEN: ${{ secrets.TOKEN_GH }}
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./ha-battery-level-mac.tar.gz
+          asset_name: ha-battery-level-mac.tar.gz
+          asset_content_type: application/gzip
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN_GH }}
