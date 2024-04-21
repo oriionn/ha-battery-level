@@ -49,7 +49,9 @@ jobs:
         run: tar -czvf linux.tar.gz ./linux
       - name: Archive (Windows)
         if: matrix.os == 'windows-latest'
-        run: zip -r windows.zip ./windows
+        uses: montudor/action-zip@v1
+        with:
+          args: zip -qq -r windows.zip ./windows
 
       - name: Upload Release Asset (Linux)
         if: matrix.os == 'ubuntu-latest'
