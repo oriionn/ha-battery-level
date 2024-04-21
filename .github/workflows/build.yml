@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  release:
+    types: [created]
+
+jobs:
+
+  build:
+    name: Build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    steps:
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.20
+
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Install dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get install gcc libgtk-3-dev libayatana-appindicator3-dev
+
+      - name: Build
+        env:
+          GO111MODULE: on
+        run: |
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            go build -ldflags "-H=windowsgui" -o build/windows/ha-battery-level.exe
+          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+            go build -o build/macos/ha-battery-level
+            mkdir -p build/macos/ha-battery-level.app/Contents/MacOS
+            mkdir -p build/macos/ha-battery-level.app/Contents/Resources
+            mv build/macos/ha-battery-level build/macos/ha-battery-level.app/Contents/MacOS/
+            cp icons/ha-battery-level.icns build/macos/ha-battery-level.app/Contents/Resources/
+            echo '<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleExecutable</key><string>ha-battery-level</string><key>CFBundleIconFile</key><string>ha-battery-level.icns</string><key>NSHighResolutionCapable</key><string>True</string><key>LSUIElement</key><string>1</string></dict></plist>' > build/macos/ha-battery-level.app/Contents/Info.plist
+          else
+            go build -tags=legacy_appindicator -o build/linux/ha-battery-level
+          fi
+
+      - name: Package Release
+        run: |
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            7z a -tzip release/windows.zip ./build/windows/* ./icons/*
+          elif [ "${{ matrix.os }}" = "macos-latest" ]; then
+            zip -r release/macos.zip ./build/macos/* ./icons/*
+          else
+            zip -r release/linux.zip ./build/linux/* ./icons/*  
+          fi
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            release/windows.zip
+            release/macos.zip
+            release/linux.zip

@@ -61,7 +61,7 @@ func getUserConfig() (map[string]interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		panic("Please configure the settings in the settings.toml file")
+		panic("Please configure the settings in the settings.toml file\n" + configPath)
 	}
 	configData, err := ioutil.ReadFile(configPath)
 	if err != nil {
