@@ -38,6 +38,7 @@ Simply download the [latest release](https://github.com/oriionn/ha-battery-level
 ![Open the file path](docs/4_1.png)
 
 5. Edit the file with your Home Assistant informations and save it
+   (Interval is in seconds)
 
 ![Edit the file](docs/5_1.png)
 
