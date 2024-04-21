@@ -201,7 +201,7 @@ func main() {
 		if userConfig["interval"] == nil {
 			userConfig["interval"] = 5
 		} else {
-			interval := userConfig["interval"].(int)
+			interval := userConfig["interval"].(int64)
 			if interval < 5 {
 				if displayMessage == true {
 					dialog.Message("Interval must be at least 5 seconds").Title("Error").Error()
@@ -257,7 +257,7 @@ func main() {
 				}
 				fmt.Println("Error: Config not found")
 			}
-			time.Sleep(time.Duration(userConfig["interval"].(int)) * time.Second)
+			time.Sleep(time.Duration(userConfig["interval"].(int64)) * time.Second)
 		}
 	}()
 
