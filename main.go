@@ -65,15 +65,31 @@ func GetBatteryInfo() (BatteryInfo, error) {
 		}
 		outputStr := strings.TrimSpace(string(output))
 		lines := strings.Split(outputStr, "\n")
-		if len(lines) < 3 {
+		if len(lines) < 2 {
 			return info, fmt.Errorf("unable to retrieve battery info")
 		}
-		levelStr := strings.TrimSpace(strings.Split(strings.Split(lines[2], ":")[1], "%")[0])
-		info.Level, err = strconv.ParseFloat(levelStr, 64)
-		if err != nil {
-			return info, err
+		for _, line := range lines {
+			if strings.Contains(line, "BatteryStatus") {
+				fields := strings.Fields(line)
+				if len(fields) >= 2 {
+					statusStr := fields[2]
+					status, err := strconv.Atoi(statusStr)
+					if err != nil {
+						return info, err
+					}
+					info.IsCharging = status == 2
+				}
+			} else if strings.Contains(line, "EstimatedChargeRemaining") {
+				fields := strings.Fields(line)
+				if len(fields) >= 2 {
+					levelStr := fields[2]
+					info.Level, err = strconv.ParseFloat(levelStr, 64)
+					if err != nil {
+						return info, err
+					}
+				}
+			}
 		}
-		info.IsCharging = strings.Contains(strings.ToLower(lines[1]), "charging")
 	default:
 		return info, fmt.Errorf("unsupported operating system")
 	}
