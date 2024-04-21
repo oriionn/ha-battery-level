@@ -14,6 +14,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -116,6 +117,7 @@ func GetBatteryInfo() (BatteryInfo, error) {
 		info.IsCharging = strings.Contains(strings.ToLower(lines[0]), "charging")
 	case "windows":
 		cmd := exec.Command("powershell", "Get-WmiObject", "Win32_Battery")
+		cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 
 		var outb, errb bytes.Buffer
 		cmd.Stdout = &outb
