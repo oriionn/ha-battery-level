@@ -59,7 +59,7 @@ func getUserConfig() (map[string]interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		err = ioutil.WriteFile(configPath, []byte("baseUrl=\ntoken=\nfriendlyName=\nsensor="), 0644)
+		err = ioutil.WriteFile(configPath, []byte("baseUrl=\ntoken=\nfriendlyName=\nsensor=\ninterval="), 0644)
 		if err != nil {
 			return nil, err
 		}
@@ -198,6 +198,19 @@ func main() {
 			}
 			panic(err)
 		}
+		if userConfig["interval"] == nil {
+			userConfig["interval"] = 5
+		} else {
+			interval := userConfig["interval"].(int)
+			if interval < 5 {
+				if displayMessage == true {
+					dialog.Message("Interval must be at least 5 seconds").Title("Error").Error()
+				}
+				panic("Interval must be at least 5 seconds")
+			}
+			userConfig["interval"] = interval
+		}
+
 		for {
 			info, err := GetBatteryInfo()
 			if err != nil {
@@ -217,7 +230,7 @@ func main() {
 				if info.IsCharging {
 					icon = "mdi:battery-charging"
 				}
-				if info.Level != 100 {
+				if info.Level >= 95 {
 					icon = fmt.Sprintf("%s-%s", icon, strconv.Itoa(int(math.Round(info.Level/10)*10)))
 				}
 				payload := fmt.Sprintf("{\"state\": \"%f\", \"attributes\": {\"unit_of_measurement\": \"%%\", \"friendly_name\": \"%s\", \"icon\": \"%s\"}}", info.Level, friendlyName, icon)
@@ -244,7 +257,7 @@ func main() {
 				}
 				fmt.Println("Error: Config not found")
 			}
-			time.Sleep(5 * time.Second)
+			time.Sleep(time.Duration(userConfig["interval"].(int)) * time.Second)
 		}
 	}()
 
