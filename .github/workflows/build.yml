@@ -32,6 +32,9 @@ jobs:
       - name: Build (Windows)
         if: matrix.os == 'windows-latest'
         run: go build -ldflags -H=windowsgui -o ./windows/ha-battery-level.exe
+      - name: Build (MacOS)
+        if: matrix.os == 'macos-latest'
+        run: go build -o ./macos/ha-battery-level
 
       - name: Copy Icons (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -43,6 +46,11 @@ jobs:
         run: |
           mkdir ./windows/icons
           cp ./icons/* ./windows/icons
+      - name: Copy Icons (MacOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          mkdir ./macos/icons
+          cp ./icons/* ./macos/icons
 
       - name: Archive (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -50,6 +58,9 @@ jobs:
       - name: Archive (Windows)
         if: matrix.os == 'windows-latest'
         run: Compress-Archive -Path ./windows/* -Destination windows.zip
+      - name: Archive (MacOS)
+        if: matrix.os == 'macos-latest'
+        run: zip -r macos.zip ./macos/*
 
       - name: Upload Release Asset (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -57,9 +68,9 @@ jobs:
         with:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: ./linux.tar.gz
-          asset_name: ha-battery-level-linux.tar.gz
+          asset_name: linux.tar.gz
           asset_content_type: application/gzip
-          asset_label: ha-battery-level-linux.tar.gz
+          asset_label: linux.tar.gz
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN_GH }}
       - name: Upload Release Asset (Windows)
@@ -68,8 +79,19 @@ jobs:
         with:
           upload_url: ${{ github.event.release.upload_url }}
           asset_path: ./windows.zip
-          asset_name: ha-battery-level-windows.zip
+          asset_name: windows.zip
           asset_content_type: application/zip
-          asset_label: ha-battery-level-windows.zip
+          asset_label: windows.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN_GH }}
+      - name: Upload Release Asset (MacOS)
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ./macos.zip
+          asset_name: macos.zip
+          asset_content_type: application/zip
+          asset_label: macos.zip
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN_GH }}
