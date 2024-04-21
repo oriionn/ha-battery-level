@@ -66,7 +66,7 @@ func getUserConfig() (map[string]interface{}, error) {
 		return nil, err
 	}
 	config := make(map[string]interface{})
-	fmt.Println(config)
+	fmt.Println(configData)
 	if err := toml.Unmarshal(configData, &config); err != nil {
 		return nil, err
 	}
