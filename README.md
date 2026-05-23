@@ -50,6 +50,13 @@ Simply download the [latest release](https://github.com/oriionn/ha-battery-level
 - Linux: `~/.config/ha-battery-level/settings.toml`
 - MacOS: `~/Library/Application Support/ha-battery-level/settings.toml`
 
+## Autostart
+### Windows
+To use it efficiently, you should add the program with a autostart setting.
+For this, you have to create a shortcut for the executable and put it in the autostart folder in Windows.
+
+To go in the autostart folder, you have to do Win + R and type "shell:startup".
+
 ## Development
 ### Prerequisites
 - [Go](https://golang.org/dl/)
