@@ -59,7 +59,7 @@ func getUserConfig() (map[string]interface{}, error) {
 		if err != nil {
 			return nil, err
 		}
-		err = ioutil.WriteFile(configPath, []byte("baseUrl=\ntoken=\nfriendlyName=\nsensor=\ninterval="), 0644)
+		err = ioutil.WriteFile(configPath, []byte("baseUrl=\"https://homeassistant.example.com\"\ntoken=\"(LONG HA ACCESS TOKEN)\"\nfriendlyName=\"PC Battery level\"\nsensor=\"sensor.pc_battery_level\"\ninterval=60"), 0644)
 		if err != nil {
 			return nil, err
 		}
